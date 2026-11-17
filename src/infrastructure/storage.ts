@@ -7,6 +7,7 @@ export interface SetupSettings {
   trainingDays: TrainingDays;
   equipment: Equipment[];
   restSeconds?: number;
+  includeStretches?: boolean;
 }
 
 export interface PersistedState {
@@ -15,6 +16,7 @@ export interface PersistedState {
   completedSets: Record<string, boolean[]>;
   completedWorkouts: string[];
   settings: SetupSettings | null;
+  programStart: string | null;
 }
 
 export const EMPTY_STATE: PersistedState = {
@@ -23,6 +25,7 @@ export const EMPTY_STATE: PersistedState = {
   completedSets: {},
   completedWorkouts: [],
   settings: null,
+  programStart: null,
 };
 
 export interface StorageLike {
@@ -40,7 +43,10 @@ export function loadState(storage: StorageLike = defaultStorage()): PersistedSta
     if (!isPersistedState(parsed)) {
       return EMPTY_STATE;
     }
-    return parsed;
+    return {
+      ...parsed,
+      programStart: typeof parsed.programStart === "string" ? parsed.programStart : null,
+    };
   } catch {
     return EMPTY_STATE;
   }

@@ -13,7 +13,7 @@ export function swapCandidates(
   }
   const used = usedIds(plan, exerciseId);
   const equipment = ownedEquipment(plan.equipment);
-  return filterPool(current.muscle, plan.difficulty, equipment, catalog).filter(
+  return filterPool(current.muscle, plan.difficulty, equipment, catalog, plan.weekNumber ?? 1).filter(
     (exercise) => exercise.id !== exerciseId && !used.has(exercise.id),
   );
 }
@@ -30,7 +30,7 @@ export function swapExercise(
   if (!replacement) {
     return null;
   }
-  const planned = planExercise(replacement, plan.difficulty);
+  const planned = planExercise(replacement, plan.difficulty, plan.weekNumber ?? 1);
   return {
     ...plan,
     days: plan.days.map((day) => ({

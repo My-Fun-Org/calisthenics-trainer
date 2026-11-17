@@ -1,7 +1,7 @@
-export const MUSCLES = ["push", "pull", "legs", "core"] as const;
+export const MUSCLES = ["push", "pull", "legs", "core", "stretch"] as const;
 export type Muscle = (typeof MUSCLES)[number];
 
-export const DAY_FOCUSES = ["push", "pull", "legs", "core", "full"] as const;
+export const DAY_FOCUSES = ["push", "pull", "legs", "core", "stretch", "full"] as const;
 export type DayFocus = (typeof DAY_FOCUSES)[number];
 
 export const FOCUS_LABEL: Record<DayFocus, string> = {
@@ -9,13 +9,14 @@ export const FOCUS_LABEL: Record<DayFocus, string> = {
   pull: "Back",
   legs: "Legs",
   core: "Core",
+  stretch: "Stretch",
   full: "Full body",
 };
 
 export const DIFFICULTIES = ["beginner", "intermediate", "advanced"] as const;
 export type Difficulty = (typeof DIFFICULTIES)[number];
 
-export const EQUIPMENT = ["floor", "wall", "pull-up-bar", "dip-bars", "rings"] as const;
+export const EQUIPMENT = ["floor", "wall", "pull-up-bar", "dip-bars", "rings", "kettlebell", "band", "jump-rope"] as const;
 export type Equipment = (typeof EQUIPMENT)[number];
 
 export const TRAINING_DAYS = [3, 4, 5, 6] as const;
@@ -24,7 +25,7 @@ export type TrainingDays = (typeof TRAINING_DAYS)[number];
 export const EFFORTS = ["reps", "hold"] as const;
 export type Effort = (typeof EFFORTS)[number];
 
-export const OPTIONAL_EQUIPMENT = ["wall", "pull-up-bar", "dip-bars", "rings"] as const;
+export const OPTIONAL_EQUIPMENT = ["wall", "pull-up-bar", "dip-bars", "rings", "kettlebell", "band", "jump-rope"] as const;
 export type OptionalEquipment = (typeof OPTIONAL_EQUIPMENT)[number];
 
 export interface Prescription {
@@ -74,6 +75,10 @@ export interface WeekPlan {
   difficulty: Difficulty;
   trainingDays: TrainingDays;
   equipment: Equipment[];
+  /** 1-based week since the program started. Missing on plans saved before progression. */
+  weekNumber?: number;
+  /** A stretch is added to the end of each session. Missing on older plans. */
+  includeStretches?: boolean;
   days: WorkoutDay[];
 }
 
@@ -82,13 +87,10 @@ export interface GenerateWeekPlanInput {
   difficulty: Difficulty;
   trainingDays: TrainingDays;
   equipment: readonly Equipment[];
+  /** Monday the current 10-week block is counted from. Defaults to weekStart. */
+  programStart?: string;
+  includeStretches?: boolean;
 }
-
-export const VOLUME = {
-  beginner: { sets: 3, reps: 8, holdSets: 3, holdSeconds: 20 },
-  intermediate: { sets: 4, reps: 10, holdSets: 3, holdSeconds: 30 },
-  advanced: { sets: 4, reps: 8, holdSets: 4, holdSeconds: 40 },
-} as const;
 
 export const DIFFICULTY_RANK: Record<Difficulty, number> = {
   beginner: 0,
