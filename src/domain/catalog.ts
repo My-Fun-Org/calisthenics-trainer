@@ -1,4 +1,7 @@
 import type { Difficulty, Effort, Equipment, Exercise, Muscle, Prescription } from "./types";
+import clipPaths from "./exerciseClips.json";
+
+const CLIPS = clipPaths as Record<string, string>;
 
 function ex(
   id: string,
@@ -22,7 +25,7 @@ function ex(
     effort,
     pose,
     cues,
-    clipUrl: "",
+    clipUrl: CLIPS[id] ?? "",
     ...(extra.prescription ? { prescription: extra.prescription } : {}),
     ...(extra.aliases && extra.aliases.length > 0 ? { aliases: extra.aliases } : {}),
   };
@@ -120,7 +123,7 @@ export const CATALOG: readonly Exercise[] = [
   ex("bear-crawl", "Bear Crawl", "legs", "locomotion", "beginner", "floor", "reps", "plank", "Hands and feet, knees off the floor, crawl forward."),
   ex("burpee", "Burpee", "legs", "plyo", "intermediate", "floor", "reps", "jump", "Squat, plank, push-up, jump, stand. Land quiet."),
   ex("jumping-jack", "Jumping Jack", "legs", "plyo", "beginner", "floor", "reps", "jump", "Jump the feet wide and clap overhead, then return."),
-  ex("jump-rope", "Jump Rope", "legs", "plyo", "beginner", "floor", "reps", "jump", "Light bounces, wrists turn the rope, elbows close."),
+  ex("jump-rope", "Jump Rope", "legs", "plyo", "beginner", "jump-rope", "reps", "jump", "Light bounces, wrists turn the rope, elbows close.", { prescription: { sets: 3, reps: 50 } }),
   ex("squat-thrust", "Squat Thrust", "legs", "plyo", "beginner", "floor", "reps", "plank", "From standing, plant the hands and jump the feet back, then in."),
   ex("stair-climbing", "Stair Climbing", "legs", "lunge", "beginner", "floor", "reps", "lunge", "Drive through the whole foot on each step. Do not bounce."),
   ex("squat-hold", "Squat Hold", "legs", "squat", "beginner", "floor", "hold", "squat", "Stay in the bottom with heels down and a tall chest."),
@@ -182,4 +185,49 @@ export const CATALOG: readonly Exercise[] = [
   ex("russian-twist", "Russian Twist", "core", "anti-lateral", "beginner", "floor", "reps", "hollow", "Lean back, tap the floor each side without rounding."),
   ex("bicycle-crunch", "Bicycle Crunch", "core", "anti-lateral", "beginner", "floor", "reps", "hollow", "Elbow to opposite knee, slow and long."),
   ex("super-man", "Superman", "core", "anti-extension", "beginner", "floor", "reps", "hollow", "Lift chest and thighs together, pause, lower.", { aliases: ["Back extension"] }),
+
+  ex("kettlebell-deadlift", "Kettlebell Deadlift", "legs", "posterior", "beginner", "kettlebell", "reps", "squat", "Hinge with the bell between the feet and stand tall."),
+  ex("kettlebell-goblet-squat", "Kettlebell Goblet Squat", "legs", "squat", "beginner", "kettlebell", "reps", "squat", "Hold the bell at the chest and sit between the heels."),
+  ex("kettlebell-swing", "Kettlebell Swing", "legs", "posterior", "intermediate", "kettlebell", "reps", "bridge", "Hinge, snap the hips, and let the bell float to chest height."),
+  ex("kettlebell-sumo-squat", "Kettlebell Sumo Squat", "legs", "squat", "intermediate", "kettlebell", "reps", "squat", "Wide stance, bell hangs between the legs, chest stays tall."),
+  ex("kettlebell-bent-over-row", "Kettlebell Bent-Over Row", "pull", "row", "beginner", "kettlebell", "reps", "row", "Hinge, pull the bell to the hip, and lower with control."),
+  ex("kettlebell-front-raise", "Kettlebell Front Raise", "push", "vertical-push", "beginner", "kettlebell", "reps", "handstand", "Raise the bell to shoulder height without swinging the body."),
+  ex("kettlebell-press", "Kettlebell Press", "push", "vertical-push", "intermediate", "kettlebell", "reps", "handstand", "Bell at the shoulder, press to lockout, ribs stay down."),
+  ex("kettlebell-snatch", "Kettlebell Snatch", "pull", "pull-up", "advanced", "kettlebell", "reps", "pull-up", "Swing, then punch the hand through so the bell settles overhead."),
+  ex("kettlebell-clean-and-press", "Kettlebell Clean and Press", "push", "vertical-push", "advanced", "kettlebell", "reps", "handstand", "Clean the bell to the shoulder, then press it overhead."),
+  ex("kettlebell-turkish-get-up", "Kettlebell Turkish Get-Up", "core", "anti-extension", "advanced", "kettlebell", "reps", "bridge", "Keep the arm locked and the eyes on the bell as you stand."),
+
+  ex("band-pull-apart", "Band Pull-Apart", "pull", "row", "beginner", "band", "reps", "row", "Hold the band at shoulder height and pull it apart across the chest."),
+  ex("band-seated-row", "Band Seated Row", "pull", "row", "beginner", "band", "reps", "row", "Sit tall, pull the band to the ribs, and squeeze the shoulder blades."),
+  ex("band-bent-over-row", "Band Bent-Over Row", "pull", "row", "intermediate", "band", "reps", "row", "Hinge and row the band to the hips without rounding."),
+  ex("band-face-pull", "Band Face Pull", "pull", "row", "intermediate", "band", "reps", "row", "Pull the band toward the face, elbows high, and rotate the hands out."),
+  ex("band-squat", "Band Squat", "legs", "squat", "beginner", "band", "reps", "squat", "Stand on the band, hold the ends, and squat against the tension."),
+  ex("band-good-morning", "Band Good Morning", "legs", "posterior", "beginner", "band", "reps", "squat", "Band across the shoulders, push the hips back, and feel the hamstrings."),
+  ex("band-leg-curl", "Band Leg Curl", "legs", "posterior", "intermediate", "band", "reps", "bridge", "Anchor the band and curl the heels in while the hips stay up."),
+  ex("band-shoulder-press", "Band Shoulder Press", "push", "vertical-push", "intermediate", "band", "reps", "handstand", "Stand on the band and press the hands overhead."),
+  ex("band-pallof-press", "Band Pallof Press", "core", "anti-lateral", "intermediate", "band", "reps", "hollow", "Press the band straight out and do not let the torso twist."),
+  ex("band-reverse-hyperextension", "Band Reverse Hyperextension", "core", "anti-extension", "beginner", "band", "reps", "hollow", "Lift the legs against the band while the chest stays quiet."),
+
+  ex("hamstring-stretch", "Hamstring Stretch", "stretch", "hamstring", "beginner", "floor", "hold", "squat", "Hinge until the hamstrings catch, then breathe and stay long."),
+  ex("seated-calf-stretch", "Seated Calf Stretch", "stretch", "calf", "beginner", "floor", "hold", "calf", "Sit tall, draw the toes back, and keep the knee soft."),
+  ex("child-pose", "Child's Pose", "stretch", "spine", "beginner", "floor", "hold", "hollow", "Sit the hips toward the heels and reach the arms long."),
+  ex("cat-cow", "Cat-Cow", "stretch", "spine", "beginner", "floor", "reps", "plank", "Round the back, then drop the belly and lift the chest."),
+  ex("overhead-triceps-stretch", "Overhead Triceps Stretch", "stretch", "shoulder", "beginner", "floor", "hold", "handstand", "Reach one arm down the back and ease the elbow with the other hand."),
+  ex("cross-body-shoulder-stretch", "Cross-Body Shoulder Stretch", "stretch", "shoulder", "beginner", "floor", "hold", "row", "Pull the arm across the chest without twisting the ribs."),
+  ex("kneeling-hip-flexor-stretch", "Kneeling Hip Flexor Stretch", "stretch", "hip-flexor", "beginner", "floor", "hold", "lunge", "Tuck the hips and shift forward until the rear hip opens."),
+  ex("quad-stretch", "Quad Stretch", "stretch", "quad", "beginner", "floor", "hold", "lunge", "Catch the foot and keep the knee pointing down."),
+  ex("neck-stretch", "Neck Stretch", "stretch", "neck", "beginner", "floor", "hold", "row", "Drop the chin and let the head stay heavy."),
+  ex("chest-stretch", "Chest Stretch", "stretch", "chest", "beginner", "floor", "hold", "bridge", "Clasp the hands behind you and lift the chest without shrugging."),
+  ex("pigeon-stretch", "Pigeon Stretch", "stretch", "glute", "intermediate", "floor", "hold", "lunge", "Square the hips and fold over the front shin."),
+  ex("worlds-greatest-stretch", "World's Greatest Stretch", "stretch", "hip-flexor", "intermediate", "floor", "reps", "lunge", "Lunge, plant the hand, and rotate the chest toward the front knee."),
+  ex("kneeling-lat-stretch", "Kneeling Lat Stretch", "stretch", "back", "intermediate", "floor", "hold", "row", "Sink the chest and reach one arm until the lat lengthens."),
+  ex("figure-four-stretch", "Figure-Four Stretch", "stretch", "glute", "intermediate", "floor", "hold", "squat", "Cross the ankle over the knee and sit the hips back."),
+  ex("puppy-pose", "Puppy Pose", "stretch", "back", "intermediate", "floor", "hold", "plank", "Walk the hands forward and melt the chest toward the floor."),
+  ex("seated-twist", "Seated Twist", "stretch", "spine", "intermediate", "floor", "hold", "hollow", "Sit tall and turn the chest, keeping both hips down."),
+  ex("standing-calf-stretch", "Standing Calf Stretch", "stretch", "calf", "intermediate", "floor", "hold", "calf", "Step one foot back, heel down, and lean until the calf stretches."),
+  ex("straddle-fold", "Straddle Fold", "stretch", "hamstring", "advanced", "floor", "hold", "squat", "Take a wide stance and fold with a long spine."),
+  ex("half-pigeon-stretch", "Half Pigeon Stretch", "stretch", "glute", "advanced", "floor", "hold", "lunge", "Keep the front shin across and the back leg long."),
+  ex("crossover-hip-flexor-stretch", "Crossover Hip Flexor Stretch", "stretch", "hip-flexor", "advanced", "floor", "hold", "lunge", "From the kneeling lunge, cross the rear foot and sink the hip."),
+  ex("one-arm-lat-stretch", "One-Arm Lat Stretch", "stretch", "back", "advanced", "floor", "hold", "row", "Reach one arm overhead and side-bend until the lat opens."),
+  ex("reverse-shoulder-stretch", "Reverse Shoulder Stretch", "stretch", "shoulder", "advanced", "floor", "hold", "row", "Clasp the hands behind the back and let the shoulders open."),
 ];

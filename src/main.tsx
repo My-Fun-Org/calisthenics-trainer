@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
+import { ProgressGate } from "@/components/ProgressGate";
 import { router } from "@/router";
 import "./index.css";
 
@@ -11,6 +12,8 @@ if (!root) {
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <ProgressGate>
+      <RouterProvider router={router} />
+    </ProgressGate>
   </React.StrictMode>,
 );

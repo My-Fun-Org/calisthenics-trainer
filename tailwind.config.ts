@@ -23,7 +23,9 @@ export default {
         },
       },
       fontFamily: {
-        display: ["'Outfit'", "system-ui", "sans-serif"],
+        sans: ['"DM Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ['"Plus Jakarta Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
       },
       boxShadow: {
         lift: "0 18px 40px rgba(0,0,0,0.35)",

@@ -7,17 +7,16 @@ import {
   findPlan,
   replacePlan,
 } from "@/domain/planHistory";
+import { canToggleSet } from "@/domain/sets";
 import { swapExercise } from "@/domain/swapExercise";
-import type { DayFocus, WorkoutDay } from "@/domain/types";
-import {
-  EMPTY_STATE,
-  loadState,
-  saveState,
-  type PersistedState,
-  type SetupSettings,
-} from "@/infrastructure/storage";
+import { trainingWeekNumber } from "@/domain/progression";
+import type { DayFocus, WeekPlan, WorkoutDay } from "@/domain/types";
+import { loadProgress, saveProgress } from "@/infrastructure/browserProgress";
+import { EMPTY_STATE, loadState, type PersistedState, type SetupSettings } from "@/infrastructure/storage";
 
 interface PlanStore extends PersistedState {
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
   startWeek: (settings: SetupSettings, weekStart?: string) => void;
   saveSettings: (settings: SetupSettings) => void;
   regenerateWeek: () => void;
@@ -32,25 +31,38 @@ export function setKey(date: string, exerciseId: string): string {
   return `${date}::${exerciseId}`;
 }
 
-const initial = loadState();
+let hydration: Promise<void> | null = null;
 
 export const usePlanStore = create<PlanStore>((set, get) => {
   const persist = (state: PersistedState): void => {
-    saveState(state);
-    set(state);
+    set({ ...state, hydrated: true });
+    void saveProgress(state);
   };
 
   return {
-    ...initial,
+    ...EMPTY_STATE,
+    hydrated: false,
+    hydrate: () => {
+      hydration ??= loadProgress()
+        .then((state) => {
+          set({ ...state, hydrated: true });
+        })
+        .catch(() => {
+          set({ ...loadState(), hydrated: true });
+        });
+      return hydration;
+    },
 
     startWeek: (settings, weekStart = mondayOf(new Date())) => {
-      const nextPlan = generateWeekPlan({ ...settings, weekStart });
-      const { currentPlan, history, completedSets, completedWorkouts } = get();
+      const { currentPlan, history, completedSets, completedWorkouts, settings: previous, programStart } = get();
+      const nextStart = resolveProgramStart(programStart, previous, settings, currentPlan, history, weekStart);
+      const nextPlan = generateWeekPlan({ ...settings, weekStart, programStart: nextStart });
       if (!currentPlan) {
         persist({
           ...get(),
           currentPlan: nextPlan,
           settings,
+          programStart: nextStart,
           completedSets: {},
           completedWorkouts: [],
         });
@@ -59,6 +71,7 @@ export const usePlanStore = create<PlanStore>((set, get) => {
       persist({
         ...get(),
         settings,
+        programStart: nextStart,
         ...advanceOrReplaceWeek({
           currentPlan,
           history,
@@ -77,20 +90,24 @@ export const usePlanStore = create<PlanStore>((set, get) => {
     },
 
     regenerateWeek: () => {
-      const { settings, currentPlan, history, completedSets, completedWorkouts } = get();
+      const { settings, currentPlan, history, completedSets, completedWorkouts, programStart } = get();
       if (!settings) {
         return;
       }
+      const weekStart = mondayOf(new Date());
+      const nextStart = resolveProgramStart(programStart, settings, settings, currentPlan, history, weekStart);
       const nextPlan = generateWeekPlan({
         ...settings,
-        weekStart: mondayOf(new Date()),
+        weekStart,
+        programStart: nextStart,
       });
       if (!currentPlan) {
-        persist({ ...get(), currentPlan: nextPlan });
+        persist({ ...get(), currentPlan: nextPlan, programStart: nextStart });
         return;
       }
       persist({
         ...get(),
+        programStart: nextStart,
         ...advanceOrReplaceWeek({
           currentPlan,
           history,
@@ -127,6 +144,9 @@ export const usePlanStore = create<PlanStore>((set, get) => {
       }
       const key = setKey(date, exerciseId);
       const current = get().completedSets[key] ?? Array.from({ length: exercise.sets }, () => false);
+      if (!canToggleSet(current, setIndex)) {
+        return;
+      }
       const nextSets = current.map((done, index) => (index === setIndex ? !done : done));
       const completedSets = { ...get().completedSets, [key]: nextSets };
       const dayComplete = isDayComplete(day, completedSets);
@@ -185,6 +205,31 @@ export const usePlanStore = create<PlanStore>((set, get) => {
     },
   };
 });
+
+function resolveProgramStart(
+  stored: string | null,
+  previous: SetupSettings | null,
+  next: SetupSettings,
+  currentPlan: WeekPlan | null,
+  history: WeekPlan[],
+  weekStart: string,
+): string {
+  if (previous && previous.difficulty !== next.difficulty) {
+    return weekStart;
+  }
+  if (stored) {
+    return stored;
+  }
+  const known = [currentPlan?.weekStart, ...history.map((plan) => plan.weekStart)].filter(
+    (date): date is string => Boolean(date),
+  );
+  known.sort();
+  const earliest = known[0];
+  if (!earliest) {
+    return weekStart;
+  }
+  return trainingWeekNumber(earliest, weekStart) >= 1 ? earliest : weekStart;
+}
 
 function isDayComplete(
   day: WorkoutDay,

@@ -1,8 +1,13 @@
 import { CATALOG } from "./catalog";
 import {
+  matchesDifficultyBand,
+  prefersHarderVariations,
+  trainingWeekNumber,
+  volumeFor,
+} from "./progression";
+import {
   DIFFICULTY_RANK,
   MUSCLES,
-  VOLUME,
   WEEKDAYS,
   type DayFocus,
   type Difficulty,
@@ -53,10 +58,12 @@ const SCHEDULE: Record<TrainingDays, readonly DaySlot[]> = {
   ],
 };
 
-export function isDifficultyEligible(exercise: Exercise, selected: Difficulty): boolean {
-  const rank = DIFFICULTY_RANK[exercise.difficulty];
-  const selectedRank = DIFFICULTY_RANK[selected];
-  return rank === selectedRank || rank === selectedRank - 1;
+export function isDifficultyEligible(
+  exercise: Exercise,
+  selected: Difficulty,
+  weekNumber = 1,
+): boolean {
+  return matchesDifficultyBand(exercise.difficulty, selected, weekNumber);
 }
 
 export function ownedEquipment(selected: readonly Equipment[]): ReadonlySet<Equipment> {
@@ -68,17 +75,31 @@ export function filterPool(
   difficulty: Difficulty,
   equipment: ReadonlySet<Equipment>,
   catalog: readonly Exercise[] = CATALOG,
+  weekNumber = 1,
 ): Exercise[] {
-  return catalog.filter(
-    (exercise) =>
-      exercise.muscle === muscle &&
-      isDifficultyEligible(exercise, difficulty) &&
-      equipment.has(exercise.equipment),
+  const owned = catalog.filter(
+    (exercise) => exercise.muscle === muscle && equipment.has(exercise.equipment),
   );
+  const band = owned.filter((exercise) =>
+    matchesDifficultyBand(exercise.difficulty, difficulty, weekNumber),
+  );
+  if (band.length >= MAIN_EXERCISES_PER_DAY) {
+    return band;
+  }
+  const building = owned.filter((exercise) => {
+    const rank = DIFFICULTY_RANK[exercise.difficulty];
+    const selectedRank = DIFFICULTY_RANK[difficulty];
+    return rank === selectedRank || rank === selectedRank - 1;
+  });
+  return building.length > 0 ? building : owned;
 }
 
-export function planExercise(exercise: Exercise, difficulty: Difficulty): PlannedExercise {
-  const volume = VOLUME[difficulty];
+export function planExercise(
+  exercise: Exercise,
+  difficulty: Difficulty,
+  weekNumber = 1,
+): PlannedExercise {
+  const volume = volumeFor(difficulty, weekNumber);
   const base = {
     exerciseId: exercise.id,
     name: exercise.name,
@@ -116,18 +137,22 @@ export function generateWeekPlan(
 ): WeekPlan {
   const equipment = ownedEquipment(input.equipment);
   const used = new Set<string>();
-  const seed = hashString(seedKey(input));
+  const weekNumber = trainingWeekNumber(input.programStart ?? input.weekStart, input.weekStart);
+  const seed = hashString(seedKey(input, weekNumber));
   const days: WorkoutDay[] = SCHEDULE[input.trainingDays].map((slot, index) => {
     const date = addDays(input.weekStart, slot.offset);
     const rng = mulberry32(seed + index * 101 + slot.offset * 17);
-    const mainPool = filterPool(slot.muscle, input.difficulty, equipment, catalog);
-    const main = pickExercises(mainPool, MAIN_EXERCISES_PER_DAY, used, rng);
-    const exercises = main.map((exercise) => planExercise(exercise, input.difficulty));
-    if (slot.coreFinisher) {
-      const corePool = filterPool("core", input.difficulty, equipment, catalog);
-      const finisher = pickExercises(corePool, 1, used, rng);
-      exercises.push(...finisher.map((exercise) => planExercise(exercise, input.difficulty)));
-    }
+    const exercises = buildSession(
+      slot.muscle,
+      input.difficulty,
+      equipment,
+      used,
+      rng,
+      catalog,
+      weekNumber,
+      Boolean(input.includeStretches),
+      slot.coreFinisher,
+    );
     return {
       date,
       weekday: WEEKDAYS[slot.offset] ?? "Monday",
@@ -142,6 +167,8 @@ export function generateWeekPlan(
     difficulty: input.difficulty,
     trainingDays: input.trainingDays,
     equipment: [...equipment],
+    weekNumber,
+    includeStretches: Boolean(input.includeStretches),
     days,
   };
 }
@@ -181,7 +208,17 @@ export function addWorkoutOnDate(
     weekday: WEEKDAYS[offset] ?? "Monday",
     muscle: focus,
     coreFinisher: false,
-    exercises: exercisesForFocus(focus, plan.difficulty, equipment, used, rng, catalog),
+    exercises: buildSession(
+      focus,
+      plan.difficulty,
+      equipment,
+      used,
+      rng,
+      catalog,
+      plan.weekNumber ?? 1,
+      Boolean(plan.includeStretches),
+      false,
+    ),
   };
   return {
     ...plan,
@@ -189,25 +226,155 @@ export function addWorkoutOnDate(
   };
 }
 
-function exercisesForFocus(
+const STRETCH_FAMILIES: Record<Muscle, readonly string[]> = {
+  push: ["chest", "shoulder"],
+  pull: ["back", "shoulder"],
+  legs: ["hamstring", "hip-flexor", "quad", "calf", "glute"],
+  core: ["spine", "back"],
+  stretch: [],
+};
+
+function buildSession(
   focus: DayFocus,
   difficulty: Difficulty,
   equipment: ReadonlySet<Equipment>,
   used: Set<string>,
   rng: () => number,
   catalog: readonly Exercise[],
+  weekNumber: number,
+  includeStretches: boolean,
+  coreFinisher: boolean,
 ): PlannedExercise[] {
-  if (focus === "full") {
-    return MUSCLES.flatMap((muscle) =>
-      pickExercises(filterPool(muscle, difficulty, equipment, catalog), 1, used, rng),
-    ).map((exercise) => planExercise(exercise, difficulty));
-  }
-  return pickExercises(
-    filterPool(focus, difficulty, equipment, catalog),
-    MAIN_EXERCISES_PER_DAY,
+  const exercises = sessionWork(
+    focus,
+    difficulty,
+    equipment,
     used,
     rng,
-  ).map((exercise) => planExercise(exercise, difficulty));
+    catalog,
+    weekNumber,
+    coreFinisher,
+  );
+  if (equipment.has("jump-rope") && !exercises.some((exercise) => exercise.exerciseId === "jump-rope")) {
+    const rope = catalog.find((exercise) => exercise.id === "jump-rope");
+    if (rope) {
+      exercises.push(planExercise(rope, difficulty, weekNumber));
+    }
+  }
+  if (includeStretches && focus !== "stretch") {
+    const stretch = pickStretch(focus, difficulty, equipment, used, rng, catalog, weekNumber);
+    if (stretch) {
+      exercises.push(planExercise(stretch, difficulty, weekNumber));
+    }
+  }
+  return exercises;
+}
+
+function sessionWork(
+  focus: DayFocus,
+  difficulty: Difficulty,
+  equipment: ReadonlySet<Equipment>,
+  used: Set<string>,
+  rng: () => number,
+  catalog: readonly Exercise[],
+  weekNumber: number,
+  coreFinisher: boolean,
+): PlannedExercise[] {
+  if (focus === "full") {
+    return MUSCLES.filter((muscle) => muscle !== "stretch").flatMap((muscle) =>
+      pickMuscle(muscle, 1, difficulty, equipment, used, rng, catalog, weekNumber),
+    );
+  }
+  if (focus === "stretch") {
+    return pickMuscle("stretch", MAIN_EXERCISES_PER_DAY, difficulty, equipment, used, rng, catalog, weekNumber);
+  }
+  const exercises = pickMuscle(
+    focus,
+    MAIN_EXERCISES_PER_DAY,
+    difficulty,
+    equipment,
+    used,
+    rng,
+    catalog,
+    weekNumber,
+  );
+  if (coreFinisher) {
+    exercises.push(
+      ...pickMuscle("core", 1, difficulty, equipment, used, rng, catalog, weekNumber),
+    );
+  }
+  return exercises;
+}
+
+function pickMuscle(
+  muscle: Muscle,
+  count: number,
+  difficulty: Difficulty,
+  equipment: ReadonlySet<Equipment>,
+  used: Set<string>,
+  rng: () => number,
+  catalog: readonly Exercise[],
+  weekNumber: number,
+): PlannedExercise[] {
+  const pool = filterPool(muscle, difficulty, equipment, catalog, weekNumber).filter(
+    (exercise) => exercise.equipment !== "jump-rope",
+  );
+  const reserved = reserveKettlebell(muscle, equipment, pool, used, rng, catalog);
+  return pickExercises(pool, count, used, rng, weekNumber, reserved).map((exercise) =>
+    planExercise(exercise, difficulty, weekNumber),
+  );
+}
+
+function reserveKettlebell(
+  muscle: Muscle,
+  equipment: ReadonlySet<Equipment>,
+  pool: readonly Exercise[],
+  used: Set<string>,
+  rng: () => number,
+  catalog: readonly Exercise[],
+): Exercise[] {
+  if (!equipment.has("kettlebell") || muscle === "stretch") {
+    return [];
+  }
+  if (muscle === "legs") {
+    const swing = catalog.find((exercise) => exercise.id === "kettlebell-swing");
+    if (swing && !used.has(swing.id)) {
+      used.add(swing.id);
+      return [swing];
+    }
+  }
+  const options = shuffle(
+    pool.filter((exercise) => exercise.equipment === "kettlebell" && !used.has(exercise.id)),
+    rng,
+  );
+  const choice = options[0];
+  if (!choice) {
+    return [];
+  }
+  used.add(choice.id);
+  return [choice];
+}
+
+function pickStretch(
+  focus: DayFocus,
+  difficulty: Difficulty,
+  equipment: ReadonlySet<Equipment>,
+  used: Set<string>,
+  rng: () => number,
+  catalog: readonly Exercise[],
+  weekNumber: number,
+): Exercise | undefined {
+  const pool = filterPool("stretch", difficulty, equipment, catalog, weekNumber).filter(
+    (exercise) => !used.has(exercise.id),
+  );
+  const families = STRETCH_FAMILIES[focus === "full" ? "legs" : focus];
+  const matched = pool.filter((exercise) => families.includes(exercise.family));
+  const choice = shuffle(matched.length > 0 ? matched : pool, rng)[0];
+  if (!choice) {
+    return undefined;
+  }
+  used.add(choice.id);
+  return choice;
 }
 
 function inPlanWeek(date: string, weekStart: string): boolean {
@@ -225,11 +392,17 @@ function pickExercises(
   count: number,
   used: Set<string>,
   rng: () => number,
+  weekNumber = 1,
+  reserved: readonly Exercise[] = [],
 ): Exercise[] {
   const available = pool.filter((exercise) => !used.has(exercise.id));
-  const shuffled = shuffle(available, rng);
-  const picked: Exercise[] = [];
-  const families = new Set<string>();
+  const shuffled = prefersHarderVariations(weekNumber)
+    ? shuffle(available, rng).sort(
+        (left, right) => DIFFICULTY_RANK[right.difficulty] - DIFFICULTY_RANK[left.difficulty],
+      )
+    : shuffle(available, rng);
+  const picked: Exercise[] = [...reserved];
+  const families = new Set(reserved.map((exercise) => exercise.family));
 
   for (const exercise of shuffled) {
     if (picked.length >= count) {
@@ -257,9 +430,9 @@ function pickExercises(
   return picked;
 }
 
-function seedKey(input: GenerateWeekPlanInput): string {
+function seedKey(input: GenerateWeekPlanInput, weekNumber: number): string {
   const gear = [...input.equipment].slice().sort().join(",");
-  return `${input.weekStart}|${input.difficulty}|${input.trainingDays}|${gear}`;
+  return `${input.weekStart}|${input.difficulty}|${input.trainingDays}|${gear}|${weekNumber}|${input.includeStretches ? "stretches" : "no-stretches"}`;
 }
 
 function addDays(isoDate: string, days: number): string {
