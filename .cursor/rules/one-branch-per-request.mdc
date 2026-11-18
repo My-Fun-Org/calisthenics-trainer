@@ -1,0 +1,18 @@
+---
+description: Put each new feature or bug on its own branch from main
+alwaysApply: true
+---
+
+# One branch per request
+
+Each new feature or bug the user asks for gets its own branch. Start it from the latest `origin/main`. Do not add that work to `main`, to an open pull request, or to a branch that already belongs to a different request.
+
+- A feature uses `feature/short-topic`.
+- A bug uses `fix/short-topic`.
+
+```powershell
+git fetch origin
+git checkout -b feature/double-unders origin/main
+```
+
+A follow-up that continues the same request stays on that branch. A new request starts a new branch, even when the current branch is clean. Open a pull request only when the user asks.
