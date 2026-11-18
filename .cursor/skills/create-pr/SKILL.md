@@ -18,7 +18,7 @@ Run these in parallel:
 - `git log -8 --oneline`
 - `git fetch origin` and `git status -sb` so the branch is compared with `origin/main`
 
-If application code changed, run `npm test` and stop if it fails. The Pages workflow runs `npm ci`, `npm test`, and `npm run build` only after a push to `main`.
+If application code changed, run `npm test` and stop if it fails. Pull requests run `.github/workflows/ci.yml` (`npm ci` and `npm test`). The Pages workflow runs `npm ci`, `npm test`, and `npm run build` after a push to `main`.
 
 Leave secrets, `.env` files, and credential files unstaged. If there is nothing to commit, do not create an empty commit.
 
