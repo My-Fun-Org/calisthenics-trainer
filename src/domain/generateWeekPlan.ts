@@ -255,10 +255,11 @@ function buildSession(
     weekNumber,
     coreFinisher,
   );
-  if (equipment.has("jump-rope") && !exercises.some((exercise) => exercise.exerciseId === "jump-rope")) {
-    const rope = catalog.find((exercise) => exercise.id === "jump-rope");
-    if (rope) {
-      exercises.push(planExercise(rope, difficulty, weekNumber));
+  if (equipment.has("jump-rope")) {
+    for (const id of ["jump-rope", "double-under"]) {
+      if (exercises.some((exercise) => exercise.exerciseId === id)) continue;
+      const rope = catalog.find((exercise) => exercise.id === id);
+      if (rope) exercises.push(planExercise(rope, difficulty, weekNumber));
     }
   }
   if (includeStretches && focus !== "stretch") {

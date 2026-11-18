@@ -143,7 +143,7 @@ describe("generateWeekPlan", () => {
     const plan = generateWeekPlan({ ...baseInput, trainingDays: 6 });
     const ids = plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.exerciseId));
     const repeated = ids.filter((id, index) => ids.indexOf(id) !== index);
-    expect(new Set(repeated)).toEqual(new Set(["jump-rope"]));
+    expect(new Set(repeated)).toEqual(new Set(["jump-rope", "double-under"]));
   });
 
   it("picks four main exercises from different families when the pool allows", () => {
@@ -262,7 +262,11 @@ describe("generateWeekPlan", () => {
     });
 
     for (const day of plan.days) {
-      expect(day.exercises.some((exercise) => exercise.exerciseId === "jump-rope")).toBe(true);
+      const rope = day.exercises.find((exercise) => exercise.exerciseId === "jump-rope");
+      const doubles = day.exercises.find((exercise) => exercise.exerciseId === "double-under");
+      expect(rope).toMatchObject({ sets: 3, reps: 50 });
+      expect(doubles).toMatchObject({ sets: 3, reps: 10 });
+      expect(day.exercises.indexOf(doubles!)).toBe(day.exercises.indexOf(rope!) + 1);
       expect(day.exercises[day.exercises.length - 1]?.muscle).toBe("stretch");
     }
     const legs = plan.days.find((day) => day.muscle === "legs");
@@ -280,6 +284,7 @@ describe("generateWeekPlan", () => {
     });
     const ids = plan.days.flatMap((day) => day.exercises.map((exercise) => exercise.exerciseId));
     expect(ids).not.toContain("jump-rope");
+    expect(ids).not.toContain("double-under");
     expect(ids.some((id) => id.startsWith("kettlebell"))).toBe(false);
     expect(plan.days.every((day) => day.exercises.every((exercise) => exercise.muscle !== "stretch"))).toBe(
       true,
@@ -332,7 +337,7 @@ describe("addWorkoutOnDate", () => {
     expect(backDay?.muscle).toBe("pull");
     expect(
       backDay?.exercises
-        .filter((exercise) => exercise.exerciseId !== "jump-rope")
+        .filter((exercise) => exercise.exerciseId !== "jump-rope" && exercise.exerciseId !== "double-under")
         .every((exercise) => exercise.muscle === "pull"),
     ).toBe(true);
 
@@ -348,7 +353,7 @@ describe("addWorkoutOnDate", () => {
     expect(stretchDay?.exercises.length).toBeGreaterThanOrEqual(4);
     expect(
       stretchDay?.exercises
-        .filter((exercise) => exercise.exerciseId !== "jump-rope")
+        .filter((exercise) => exercise.exerciseId !== "jump-rope" && exercise.exerciseId !== "double-under")
         .every((exercise) => exercise.muscle === "stretch"),
     ).toBe(true);
     expect(stretchDay?.exercises.every((exercise) => exercise.clipUrl.length > 0)).toBe(true);
@@ -359,7 +364,7 @@ describe("addWorkoutOnDate", () => {
     const next = addWorkoutOnDate(plan, "2026-11-18", "push");
     const ids =
       next?.days.flatMap((day) =>
-        day.exercises.map((exercise) => exercise.exerciseId).filter((id) => id !== "jump-rope"),
+        day.exercises.map((exercise) => exercise.exerciseId).filter((id) => id !== "jump-rope" && id !== "double-under"),
       ) ?? [];
     expect(new Set(ids).size).toBe(ids.length);
   });
