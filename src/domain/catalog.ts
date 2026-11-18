@@ -124,6 +124,7 @@ export const CATALOG: readonly Exercise[] = [
   ex("burpee", "Burpee", "legs", "plyo", "intermediate", "floor", "reps", "jump", "Squat, plank, push-up, jump, stand. Land quiet."),
   ex("jumping-jack", "Jumping Jack", "legs", "plyo", "beginner", "floor", "reps", "jump", "Jump the feet wide and clap overhead, then return."),
   ex("jump-rope", "Jump Rope", "legs", "plyo", "beginner", "jump-rope", "reps", "jump", "Light bounces, wrists turn the rope, elbows close.", { prescription: { sets: 3, reps: 50 } }),
+  ex("double-under", "Double Unders", "legs", "plyo", "intermediate", "jump-rope", "reps", "jump", "One jump, two rope passes. Stay tall and flick the wrists.", { aliases: ["Double rope jumps"], prescription: { sets: 3, reps: 10 } }),
   ex("squat-thrust", "Squat Thrust", "legs", "plyo", "beginner", "floor", "reps", "plank", "From standing, plant the hands and jump the feet back, then in."),
   ex("stair-climbing", "Stair Climbing", "legs", "lunge", "beginner", "floor", "reps", "lunge", "Drive through the whole foot on each step. Do not bounce."),
   ex("squat-hold", "Squat Hold", "legs", "squat", "beginner", "floor", "hold", "squat", "Stay in the bottom with heels down and a tall chest."),

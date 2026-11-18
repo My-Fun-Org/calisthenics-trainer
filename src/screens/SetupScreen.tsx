@@ -154,7 +154,7 @@ export function SetupScreen() {
         <section className="space-y-2.5">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="font-display text-sm font-semibold text-stone-800">Equipment</h2>
-            <span className="text-xs text-stone-500">Bell and rope are added to each session</span>
+            <span className="text-xs text-stone-500">Bell, jump rope, and double unders are added to each session</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {OPTIONAL_EQUIPMENT.map((item) => {
