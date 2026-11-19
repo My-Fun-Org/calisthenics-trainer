@@ -185,6 +185,50 @@ export function canAddWorkoutOnDate(plan: WeekPlan, date: string): boolean {
   return inPlanWeek(date, plan.weekStart) && !plan.days.some((day) => day.date === date);
 }
 
+export function changeWorkoutOnDate(
+  plan: WeekPlan,
+  date: string,
+  focus: DayFocus,
+  catalog: readonly Exercise[] = CATALOG,
+): WeekPlan | null {
+  const existing = plan.days.find((day) => day.date === date);
+  if (!existing || !inPlanWeek(date, plan.weekStart)) {
+    return null;
+  }
+  if (existing.muscle === focus) {
+    return plan;
+  }
+  const offset = daysBetween(plan.weekStart, date);
+  const equipment = ownedEquipment(plan.equipment);
+  const used = new Set(
+    plan.days
+      .filter((day) => day.date !== date)
+      .flatMap((day) => day.exercises.map((exercise) => exercise.exerciseId)),
+  );
+  const rng = mulberry32(hashString(`${plan.weekStart}|switch|${date}|${focus}`) + offset * 17);
+  const replaced: WorkoutDay = {
+    date,
+    weekday: existing.weekday,
+    muscle: focus,
+    coreFinisher: false,
+    exercises: buildSession(
+      focus,
+      plan.difficulty,
+      equipment,
+      used,
+      rng,
+      catalog,
+      plan.weekNumber ?? 1,
+      Boolean(plan.includeStretches),
+      false,
+    ),
+  };
+  return {
+    ...plan,
+    days: plan.days.map((day) => (day.date === date ? replaced : day)),
+  };
+}
+
 export function addWorkoutOnDate(
   plan: WeekPlan,
   date: string,
