@@ -34,7 +34,10 @@ export function WeekScreen() {
   const regenerateWeek = usePlanStore((state) => state.regenerateWeek);
   const programStart = usePlanStore((state) => state.programStart);
   const addWorkout = usePlanStore((state) => state.addWorkout);
-  const [addingDate, setAddingDate] = useState<string | null>(null);
+  const changeWorkout = usePlanStore((state) => state.changeWorkout);
+  const [picker, setPicker] = useState<
+    { mode: "add"; date: string } | { mode: "switch"; date: string; focus: DayFocus } | null
+  >(null);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
 
   if (!plan) {
@@ -101,10 +104,14 @@ export function WeekScreen() {
                         canAdd={canAdd}
                         onOpen={() => {
                           if (cell.kind === "off") {
-                            setAddingDate(cell.date);
+                            setPicker({ mode: "add", date: cell.date });
                             return;
                           }
-                          navigate(`/workout/${cell.date}`);
+                          setPicker({
+                            mode: "switch",
+                            date: cell.date,
+                            focus: cell.muscle ?? "push",
+                          });
                         }}
                       />
                     );
@@ -192,14 +199,35 @@ export function WeekScreen() {
       </div>
 
       <FocusPicker
-        date={addingDate}
-        onCancel={() => setAddingDate(null)}
+        date={picker?.date ?? null}
+        current={picker?.mode === "switch" ? picker.focus : undefined}
+        onCancel={() => setPicker(null)}
+        onOpen={
+          picker?.mode === "switch"
+            ? () => {
+                const date = picker.date;
+                setPicker(null);
+                navigate(`/workout/${date}`);
+              }
+            : undefined
+        }
         onPick={(focus) => {
-          const date = addingDate;
-          if (!date || !addWorkout(date, focus)) {
+          if (!picker) {
             return;
           }
-          setAddingDate(null);
+          if (picker.mode === "add") {
+            if (!addWorkout(picker.date, focus)) {
+              return;
+            }
+            setPicker(null);
+            navigate(`/workout/${picker.date}`);
+            return;
+          }
+          if (focus !== picker.focus && !changeWorkout(picker.date, focus)) {
+            return;
+          }
+          const date = picker.date;
+          setPicker(null);
           navigate(`/workout/${date}`);
         }}
       />
@@ -209,11 +237,13 @@ export function WeekScreen() {
 
 interface FocusPickerProps {
   date: string | null;
+  current?: DayFocus;
   onPick: (focus: DayFocus) => void;
+  onOpen?: () => void;
   onCancel: () => void;
 }
 
-function FocusPicker({ date, onPick, onCancel }: FocusPickerProps) {
+function FocusPicker({ date, current, onPick, onOpen, onCancel }: FocusPickerProps) {
   if (!date) {
     return null;
   }
@@ -236,23 +266,42 @@ function FocusPicker({ date, onPick, onCancel }: FocusPickerProps) {
             {weekdayOf(date)} · {formatDateShort(date)}
           </p>
           <h2 id="focus-picker-title" className="font-display mt-0.5 text-lg font-bold text-stone-900">
-            What do you want to work on?
+            {current ? `Switch from ${FOCUS_LABEL[current]}` : "What do you want to work on?"}
           </h2>
         </div>
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="mb-3 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+          >
+            Open workout
+          </button>
+        ) : null}
         <div className="space-y-2">
-          {DAY_FOCUSES.map((focus) => (
-            <button
-              key={focus}
-              type="button"
-              onClick={() => onPick(focus)}
-              className="flex min-h-[52px] w-full items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-left transition-colors hover:border-amber-500 hover:bg-amber-50/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
-            >
-              <span className="font-display text-sm font-semibold text-stone-900">
-                {FOCUS_LABEL[focus]}
-              </span>
-              <span className="text-xs text-stone-500">{FOCUS_HINT[focus]}</span>
-            </button>
-          ))}
+          {DAY_FOCUSES.map((focus) => {
+            const selected = focus === current;
+            return (
+              <button
+                key={focus}
+                type="button"
+                onClick={() => onPick(focus)}
+                aria-pressed={selected}
+                className={`flex min-h-[52px] w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left transition-colors active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 ${
+                  selected
+                    ? "border-amber-500 bg-amber-50"
+                    : "border-stone-200 bg-white hover:border-amber-500 hover:bg-amber-50/40"
+                }`}
+              >
+                <span className="font-display text-sm font-semibold text-stone-900">
+                  {FOCUS_LABEL[focus]}
+                </span>
+                <span className="text-xs text-stone-500">
+                  {selected ? "Current" : FOCUS_HINT[focus]}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <button
           type="button"

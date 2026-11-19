@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CATALOG } from "./catalog";
-import { addWorkoutOnDate, canAddWorkoutOnDate, generateWeekPlan } from "./generateWeekPlan";
+import { addWorkoutOnDate, canAddWorkoutOnDate, changeWorkoutOnDate, generateWeekPlan } from "./generateWeekPlan";
 import { volumeFor } from "./progression";
 import { DIFFICULTY_RANK, EQUIPMENT, type DayFocus, type Difficulty, type Equipment, type TrainingDays, type WeekPlan } from "./types";
 
@@ -367,6 +367,32 @@ describe("addWorkoutOnDate", () => {
         day.exercises.map((exercise) => exercise.exerciseId).filter((id) => id !== "jump-rope" && id !== "double-under"),
       ) ?? [];
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("replaces a scheduled day with the chosen focus", () => {
+    const plan = generateWeekPlan(baseInput);
+    const next = changeWorkoutOnDate(plan, "2026-11-19", "core");
+    const day = next?.days.find((item) => item.date === "2026-11-19");
+
+    expect(day).toMatchObject({ weekday: "Thursday", muscle: "core" });
+    expect(
+      day?.exercises
+        .filter((exercise) => exercise.exerciseId !== "jump-rope" && exercise.exerciseId !== "double-under")
+        .every((exercise) => exercise.muscle === "core"),
+    ).toBe(true);
+    expect(next?.days.filter((item) => item.date !== "2026-11-19")).toEqual(
+      plan.days.filter((item) => item.date !== "2026-11-19"),
+    );
+  });
+
+  it("keeps a day when the chosen focus is already scheduled", () => {
+    const plan = generateWeekPlan(baseInput);
+    expect(changeWorkoutOnDate(plan, "2026-11-19", "legs")).toBe(plan);
+  });
+
+  it("does not switch a date that has no workout", () => {
+    const plan = generateWeekPlan(baseInput);
+    expect(changeWorkoutOnDate(plan, "2026-11-18", "core")).toBeNull();
   });
 
   it("leaves an existing workout day unchanged", () => {

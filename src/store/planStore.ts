@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { addWorkoutOnDate, generateWeekPlan, mondayOf } from "@/domain/generateWeekPlan";
+import { addWorkoutOnDate, changeWorkoutOnDate, generateWeekPlan, mondayOf } from "@/domain/generateWeekPlan";
 import {
   advanceOrReplaceWeek,
   findCoveringPlan,
@@ -21,6 +21,7 @@ interface PlanStore extends PersistedState {
   saveSettings: (settings: SetupSettings) => void;
   regenerateWeek: () => void;
   addWorkout: (date: string, focus: DayFocus) => boolean;
+  changeWorkout: (date: string, focus: DayFocus) => boolean;
   completeSet: (date: string, exerciseId: string, setIndex: number) => void;
   completeWorkout: (date: string) => void;
   swap: (date: string, exerciseId: string, replacementId: string) => boolean;
@@ -131,6 +132,32 @@ export const usePlanStore = create<PlanStore>((set, get) => {
       persist({
         ...get(),
         ...replacePlan(currentPlan, history, next),
+      });
+      return true;
+    },
+
+    changeWorkout: (date, focus) => {
+      const { currentPlan, history, completedSets, completedWorkouts } = get();
+      const owner = findCoveringPlan(currentPlan, history, date);
+      if (!owner) {
+        return false;
+      }
+      const next = changeWorkoutOnDate(owner, date, focus);
+      if (!next) {
+        return false;
+      }
+      if (next === owner) {
+        return true;
+      }
+      const prefix = `${date}::`;
+      const remainingSets = Object.fromEntries(
+        Object.entries(completedSets).filter(([key]) => !key.startsWith(prefix)),
+      );
+      persist({
+        ...get(),
+        ...replacePlan(currentPlan, history, next),
+        completedSets: remainingSets,
+        completedWorkouts: completedWorkouts.filter((item) => item !== date),
       });
       return true;
     },
